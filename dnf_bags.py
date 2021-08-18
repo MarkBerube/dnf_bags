@@ -1,4 +1,4 @@
-# a dunfa scraper that grabs the top ten damage dealers and inserts their data in a CSV file
+# a dunfa scraper that grabs the top 100 damage dealers and inserts their data in a CSV file
 
 import asyncio
 import os
@@ -21,6 +21,7 @@ options = Options()
 options.add_argument('--disable-web-security')
 driver = webdriver.Chrome(CHROMEDRIVER_PATH, options=options)
 
+# find all character ranking data
 async def get_rank_data(session, url):
     r = await session.get(url)
     ranks = r.html.find('tr.character-row')
@@ -33,11 +34,13 @@ async def get_rank_data(session, url):
         data.append(rank_data)
     return data
 
+# main func for ranking data
 async def get_ranks(urls):
     asession = AsyncHTMLSession()
     tasks = (get_rank_data(asession, url) for url in urls)
     return await asyncio.gather(*tasks)
 
+# convert the job data into URLs
 urls = []
 for job in jobs:
     for sub in job['subs']:
@@ -45,6 +48,7 @@ for job in jobs:
 
 results = asyncio.run(get_ranks(urls))
 
+# convert the ranking data into URLs
 urls = []
 for ranks in results:
     for char in ranks:
@@ -52,6 +56,8 @@ for ranks in results:
 
 dealers = []
 
+# open up the char page in selenium
+# selenium is required since this damage value is kept in JS
 for url in urls:
     driver.implicitly_wait(1)
     driver.get(url)
@@ -60,6 +66,7 @@ for url in urls:
 
     dealers.append([url, damage])
 
+# convert everything to a dataframe & save it as a CSV
 df = pan.DataFrame(dealers, columns=['url', 'damage'])
 df.sort_values(by=['damage'], ascending=True, inplace=True).to_csv('results/rankings.csv', index=False)
 print("done.")
